@@ -37,7 +37,7 @@ document.getElementById("vipForm").addEventListener("submit", async function (e)
     };
 
     try {
-      const res = await fetch("http://localhost:3000/upload", {
+      const res = await fetch("https://dxbbpi.github.io/vipalex2/upload", {
         method: "POST",
         headers: {
           "Content-Type": "application/json", // ใช้ JSON แทน FormData

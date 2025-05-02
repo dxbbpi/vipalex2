@@ -37,7 +37,7 @@ document.getElementById("vipForm").addEventListener("submit", async function (e)
     };
 
     try {
-      const res = await fetch("https://vipalex.onrender.com/upload", {
+      const res = await fetch("https://e0c35e24-b277-473b-996a-42f7828e814e-00-2sivhdml709b6.pike.replit.dev/upload", {
         method: "POST",
         headers: {
           "Content-Type": "application/json", // ใช้ JSON แทน FormData

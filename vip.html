@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIP Registration</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background: radial-gradient(circle at 50% 50%, #000000 0%, #1a1a1a 60%, #ffd700 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Kanit', sans-serif;
+            overflow: hidden;
+            position: relative;
+            background-size: 300% 300%;
+            animation: gradientMove 15s ease infinite;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h2 {
+            color: #ffd700;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 1.2em;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            background-color: #2d2d2d;
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1em;
+        }
+
+        input[type="text"]:focus,
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #ffcc00;
+        }
+
+        button {
+            background-color: #ffd700;
+            color: #000;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2em;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #ffcc00;
+        }
+
+        #preview {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #ffd700;
+        }
+
+        .lightbox {
+            display: none;
+            position: fixed;
+            z-index: 999;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            border: 4px solid #ffd700;
+            border-radius: 15px;
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #2d2d2d;
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+        }
+
+        .modal h2 {
+            margin: 0;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .modal p {
+            margin: 10px 0;
+            font-size: 0.8em;
+            line-height: 1;
+            text-align: left;
+            white-space: pre-line;
+            word-wrap: break-word;
+        }
+
+        .modal img {
+            max-width: 100%;
+            height: auto;
+            margin: 20px 0;
+            border-radius: 10px;
+            border: 3px solid #ffd700;
+        }
+
+        .close-btn {
+            background-color: #ffd700;
+            color: #000;
+            padding: 10px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-top: 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background-color: #ffcc00;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>สมัคร VIP</h2>
+        <form id="vipForm">
+            <label for="discordName">Discord ID:</label>
+            <input type="text" id="discordName" required><br><br>
+            <label for="image">อัปโหลดสลิป:</label>
+            <input type="file" id="image" required><br><br>
+            <button type="submit">ส่งข้อมูล</button>
+        </form>
+
+        <div id="preview"></div>
+    </div>
+
+    <script>
+        document.getElementById("vipForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const discordName = document.getElementById("discordName").value.trim();
+            const imageFile = document.getElementById("image").files[0];
+            const preview = document.getElementById("preview");
+
+            // ตรวจสอบเบื้องต้น
+            if (!discordName || !imageFile) {
+                alert("กรุณากรอกชื่อ Discord และเลือกรูปสลิป");
+                return;
+            }
+
+            // ตรวจขนาด/ประเภทไฟล์
+            const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+            if (!allowedTypes.includes(imageFile.type)) {
+                alert("กรุณาอัปโหลดรูป JPG, PNG หรือ WEBP เท่านั้น");
+                return;
+            }
+
+            if (imageFile.size > 5 * 1024 * 1024) {
+                alert("ขนาดรูปต้องไม่เกิน 5MB");
+                return;
+            }
+
+            // แสดงสถานะ
+            preview.innerHTML = ":outbox_tray: กำลังตรวจสอบสลิป...";
+
+            // ใช้ FormData แทน JSON
+            const formData = new FormData();
+            formData.append("discordName", discordName);
+            formData.append("image", imageFile);
+
+            try {
+                const res = await fetch("http://localhost:5000/upload", {
+                    method: "POST",
+                    body: formData, // ส่ง formData ไปแทน JSON
+                });
+
+                const result = await res.json();
+
+                if (res.ok && result.success) {
+                    // หากสลิปได้รับการตรวจสอบสำเร็จ
+                    preview.innerHTML = `สลิปได้ถูกตรวจสอบแล้ว: ${result.message}`;
+                } else {
+                    // หากสลิปผิด
+                    preview.innerHTML = `สลิปผิด: ${result.message || 'กรุณาใส่รูปภาพที่ถูกต้อง'}`;
+                }
+            } catch (error) {
+                preview.innerHTML = "เกิดข้อผิดพลาดในการส่งข้อมูล โปรดลองใหม่อีกครั้ง";
+                console.error("Error during submission:", error);
+            }
+        });
+    </script>
+
+</body>
+</html>

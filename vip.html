@@ -224,7 +224,7 @@
             formData.append("image", imageFile);
 
             try {
-                const res = await fetch("http://localhost:5000/upload", {
+                const res = await fetch("https://vipalex.onrender.com/upload", {
                     method: "POST",
                     body: formData, // ส่ง formData ไปแทน JSON
                 });

@@ -1,92 +1,84 @@
 const express = require("express");
-const multer = require("multer");
-const Tesseract = require("tesseract.js");
+const session = require("express-session");
 const axios = require("axios");
-const FormData = require("form-data");
-const fs = require("fs");
-const cors = require('cors');
-const client = require("./bot"); // นำเข้าบอทจากไฟล์ bot.js
+const path = require("path");
+require("dotenv").config();
 
 const app = express();
-const upload = multer({ dest: "uploads/" });
-const PORT = 5000;
+const PORT = process.env.PORT || 3000;
 
-const webhookURL = "https://discord.com/api/webhooks/1367500986007945367/HPBUY-hfMex_cn1Q3r3U8jiREDfrpIM3gJkyVs9nlLSu2cGRZYMx9yfjd9Lu4H0ULaia"; // ใส่ URL ของ Webhook
+app.use(session({
+  secret: "very_secret_key",
+  resave: false,
+  saveUninitialized: true,
+}));
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.static("public")); // สำหรับ landing page และไฟล์หน้าเว็บ
 
-app.post("/upload", upload.single("image"), async (req, res) => {
-    const filePath = req.file.path;
-    const discordName = req.body.discordName;
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const REDIRECT_URI = "https://vipalex2.onrender.com/callback";
 
-    if (!discordName || isNaN(discordName)) {
-        return res.status(400).json({ success: false, message: "กรุณาใช้ Discord ID แทนชื่อ Discord" });
-    }
+// เริ่ม OAuth2 login
+app.get("/login", (req, res) => {
+  const redirect = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify`;
+  res.redirect(redirect);
+});
 
-    try {
-        // ใช้ Tesseract เพื่ออ่านข้อความจากภาพ
-        const { data: { text } } = await Tesseract.recognize(filePath, "tha+eng");
-        let cleanedText = text.replace(/[^a-zA-Z0-9ก-๙\s]/g, '').toLowerCase();
-        cleanedText = cleanedText.replace("สําเร็จ", "สำเร็จ");
+// Callback หลัง login
+app.get("/callback", async (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.send("No code provided");
 
-        const requiredKeywords = [
-            "โอน", "บาท", "เวลา", "บัญชี", "scb", "กรุงไทย", "kbank", "transaction", "จำนวนเงิน", "เงิน", "สำเร็จ"
-        ];
+  try {
+    // ขอ access token
+    const tokenResponse = await axios.post("https://discord.com/oauth2/authorize?client_id=1367595537049845850&response_type=code&redirect_uri=https%3A%2F%2Fvipalex2.onrender.com&scope=identify", new URLSearchParams({
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: REDIRECT_URI,
+      scope: "identify"
+    }), {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" }
+    });
 
-        const matched = requiredKeywords.filter(keyword => cleanedText.includes(keyword));
+    const accessToken = tokenResponse.data.access_token;
 
-        if (matched.length >= 3) {
-            // หลังจากตรวจสอบสลิปสำเร็จ ส่งภาพไปยัง Discord Webhook
-            const formData = new FormData();
-            formData.append("payload_json", JSON.stringify({
-                username: "VIP BOT",
-                embeds: [{
-                    title: "✅ ตรวจสอบสลิปผ่านแล้ว",
-                    color: 65280,
-                    description: `ตรวจสอบสำเร็จ: ${matched.join(", ")}`,
-                    fields: [{
-                        name: "ชื่อ Discord",
-                        value: `<@${discordName}>`
-                    }],
-                    timestamp: new Date().toISOString()
-                }]
+    // ดึง user data
+    const userResponse = await axios.get("https://discord.com/api/users/@me", {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
 
-            }));
-            formData.append('file', fs.createReadStream(filePath)); 
+    req.session.user = userResponse.data;
+    res.redirect("/landing");
+  } catch (err) {
+    console.error(err);
+    res.send("OAuth2 error");
+  }
+});
 
-            const resp = await axios.post(webhookURL, formData, {
-                headers: formData.getHeaders()
-            });
+// หน้า landing หลัง login
+app.get("/landing", (req, res) => {
+  if (!req.session.user) return res.redirect("/login");
 
-            // ส่งข้อมูลไปยัง Discord
-            const guild = client.guilds.cache.get("997205757009330216"); // ใส่ ID ของเซิร์ฟเวอร์
-            if (!guild) {
-                return res.status(400).json({ success: false, message: "ไม่พบเซิร์ฟเวอร์" });
-            }
+  res.send(`
+    <html>
+      <head><title>Logged In</title></head>
+      <body style="background:black;color:gold;font-family:sans-serif;text-align:center;padding-top:50px">
+        <h1>👑 Welcome, ${req.session.user.username}</h1>
+        <p>Your Discord ID: ${req.session.user.id}</p>
+        <a href="/logout">Logout</a>
+      </body>
+    </html>
+  `);
+});
 
-            // ใช้ fetch เพื่อดึงข้อมูลสมาชิก
-            const member = await guild.members.fetch(discordName); 
-
-            if (member) {
-                // ถ้าเจอผู้ใช้, แอดยศให้
-                await member.roles.add("1266072275292262503"); // ใส่ ID ของยศที่ต้องการให้
-                res.json({ success: true, message: "ส่งข้อมูลเข้า Discord แล้ว และแอดยศให้สมาชิก" });
-            } else {
-                res.status(404).json({ success: false, message: "ไม่พบสมาชิกในเซิร์ฟเวอร์" });
-            }
-        } else {
-            res.status(400).json({ success: false, message: "ตรวจไม่พบคำสำคัญในสลิป" });
-        }
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการประมวลผลสลิป" });
-    } finally {
-        fs.unlinkSync(filePath); // ลบไฟล์ที่อัปโหลดหลังจากใช้แล้ว
-    }
+// Logout
+app.get("/logout", (req, res) => {
+  req.session.destroy(() => res.redirect("/"));
 });
 
 app.listen(PORT, () => {
-    console.log(`Server started on https://vipalex2.onrender.com:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

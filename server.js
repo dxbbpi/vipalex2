@@ -4,7 +4,7 @@ const app = express();
 
 const CLIENT_ID = '1367595537049845850';
 const CLIENT_SECRET = '-00iN34UEG9AusqVwwzdJmQ0G2TD5Hrz';
-const REDIRECT_URI = 'http://localhost:3000/callback';
+const REDIRECT_URI = 'https://vipalex2.onrender.com/callback';
 
 // เสิร์ฟไฟล์ static จากโฟลเดอร์ 'public'
 app.use(express.static('public'));
@@ -397,5 +397,5 @@ app.get('/home', (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log('🚀 Server running at http://localhost:3000');
+  console.log('🚀 Server running at https://vipalex2.onrender.com');
 });
